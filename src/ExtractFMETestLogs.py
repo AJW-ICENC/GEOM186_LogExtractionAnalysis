@@ -7,7 +7,7 @@ This script extracts meta information from FME job logs as part of the gaps and 
 """
 
 # Author: x
-# Version: 0.1
+# Version: 0.3
 # Date: 28/05/2026
 
 
