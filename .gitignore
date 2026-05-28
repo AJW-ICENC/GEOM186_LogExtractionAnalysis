@@ -1,0 +1,9 @@
+input/GaOs_FME_job_logs_beta/
+venv/
+__pycache__/
+GaOs_FME_job_logs_beta/
+.venv/
+env/
+ENV/
+config.ini
+output/
