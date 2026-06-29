@@ -155,21 +155,24 @@ def main():
         output_file=COMBINED_EXTRACTED_CSV,
     )
 
+
     run_analysis(
         extracted_csv=COMBINED_EXTRACTED_CSV,
         enriched_output_csv=ANALYSIS_ENRICHED_CSV,
         service_summary_csv=SERVICE_SUMMARY_CSV,
         job_outcome_summary_csv=JOB_OUTCOME_SUMMARY_CSV,
-        service_month_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
+        service_week_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
     )
+
 
     if not args.skip_plots:
         run_plots(
             enriched_csv=ANALYSIS_ENRICHED_CSV,
             service_summary_csv=SERVICE_SUMMARY_CSV,
-            service_month_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
+            service_week_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
             plots_output_dir=PLOTS_OUTPUT_DIR,
         )
+
 
     print("\nPipeline complete.\n")
 

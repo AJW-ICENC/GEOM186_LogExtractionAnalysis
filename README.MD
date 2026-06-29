@@ -30,6 +30,8 @@ This codebase solves that problem by:
 2. Structuring it into a tabular dataset (CSV)
 3. Supporting downstream analysis to evaluate system performance, reliability, and behaviour
 
+The central flowline performs initial analysis to assess outputs immediately but `Scripts/` contains additional analytical scripts and plots that use the created outputs to perform advanced analysis and figure creation. 
+
 ---
 
 ## Project Structure

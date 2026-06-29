@@ -6,27 +6,15 @@ This module performs initial analysis on the extracted FME job log dataset.
 
 """
 
-# Author: x
-# Version: 0.2
-# Date: 28/05/2026
-
-
-## Import Modules
-
 import os
 import pandas as pd
 
 
-## Utility Functions
-
 def safe_bool_series(series):
-    """Convert mixed boolean-like values to boolean."""
-
     return series.astype(str).str.lower().isin(["true", "1", "yes"])
 
 
 def classify_job_outcome(row):
-    """Classify job outcome using extracted fields."""
 
     status = str(row.get("status", "")).upper()
     warnings = row.get("warnings")
@@ -48,138 +36,46 @@ def classify_job_outcome(row):
     return "successful_clean"
 
 
-## Analysis Runner
-
 def run_analysis(
     extracted_csv,
     enriched_output_csv,
     service_summary_csv,
     job_outcome_summary_csv,
-    service_month_summary_csv,
+    service_week_summary_csv,
 ):
-    """Run initial analysis on extracted FME log records."""
 
     print("\nStarting analysis...")
-    print(f"Input file: {extracted_csv}")
+    df = pd.read_csv(extracted_csv, low_memory=False)
 
-    dataframe = pd.read_csv(extracted_csv)
+    df["error_flag"] = safe_bool_series(df.get("error_flag", False))
+    df["start_time"] = pd.to_datetime(df["start_time"], errors="coerce")
 
-    ## Type handling
+    # Filter valid services only
+    df = df[df["service"].notna()]
+    df = df[df["service"] != "unknown"]
 
-    if "error_flag" in dataframe.columns:
-        dataframe["error_flag"] = safe_bool_series(dataframe["error_flag"])
-    else:
-        dataframe["error_flag"] = False
+    # Weekly grouping
+    df["job_week"] = df["start_time"].dt.to_period("W").apply(lambda r: r.start_time)
 
-    numeric_columns = [
-        "duration_sec",
-        "duration_calculated",
-        "warnings",
-        "features_read",
-        "features_written",
-        "features_output",
-        "peak_memory_kb",
-        "current_memory_kb",
-        "log_line_count",
-        "error_count",
-        "warning_text_count",
-        "max_geometry_processed",
-        "max_geometry_total",
-    ]
+    # Core flags
+    df["zero_output_flag"] = df["features_written"].fillna(0).eq(0)
+    df["job_outcome"] = df.apply(classify_job_outcome, axis=1)
 
-    for column in numeric_columns:
-        if column in dataframe.columns:
-            dataframe[column] = pd.to_numeric(dataframe[column], errors="coerce")
-
-    date_columns = [
-        "start_time",
-        "end_time",
-    ]
-
-    for column in date_columns:
-        if column in dataframe.columns:
-            dataframe[column] = pd.to_datetime(dataframe[column], errors="coerce")
-
-    ## Derived fields
-
-    dataframe["zero_output_flag"] = dataframe["features_written"].fillna(0).eq(0)
-
-    dataframe["has_warning_flag"] = dataframe["warnings"].fillna(0).gt(0)
-
-    dataframe["has_warning_text_flag"] = dataframe["warning_text_count"].fillna(0).gt(0)
-
-    dataframe["has_error_text_flag"] = dataframe["error_count"].fillna(0).gt(0)
-
-    dataframe["job_outcome"] = dataframe.apply(classify_job_outcome, axis=1)
-
-    dataframe["duration_difference_sec"] = (
-        dataframe["duration_calculated"] - dataframe["duration_sec"]
-    )
-
-    dataframe["parse_note_flag"] = dataframe["parse_notes"].fillna("").ne("")
-
-    dataframe["job_month"] = dataframe["start_time"].dt.to_period("M").astype(str)
-
-    ## Service summary
-
-    service_summary = dataframe.groupby(
-        ["dataset_phase", "service"],
+    # Weekly aggregation
+    service_week_summary = df.groupby(
+        ["job_week", "service"],
         dropna=False
     ).agg(
         job_count=("job_id", "count"),
-        mean_duration_sec=("duration_sec", "mean"),
-        median_duration_sec=("duration_sec", "median"),
-        max_duration_sec=("duration_sec", "max"),
-        mean_duration_calculated=("duration_calculated", "mean"),
-        mean_peak_memory_kb=("peak_memory_kb", "mean"),
-        max_peak_memory_kb=("peak_memory_kb", "max"),
-        total_features_read=("features_read", "sum"),
-        total_features_written=("features_written", "sum"),
-        error_flag_count=("error_flag", "sum"),
-        warning_job_count=("has_warning_flag", "sum"),
-        zero_output_count=("zero_output_flag", "sum"),
-        parse_note_count=("parse_note_flag", "sum"),
+        error_count=("error_flag", "sum")
     ).reset_index()
 
-    ## Outcome summary
+    # Save outputs
+    os.makedirs(os.path.dirname(service_week_summary_csv), exist_ok=True)
 
-    outcome_summary = dataframe.groupby(
-        ["dataset_phase", "job_outcome"],
-        dropna=False
-    ).agg(
-        job_count=("job_id", "count"),
-        mean_duration_sec=("duration_sec", "mean"),
-        max_duration_sec=("duration_sec", "max"),
-        mean_peak_memory_kb=("peak_memory_kb", "mean"),
-    ).reset_index()
+    df.to_csv(enriched_output_csv, index=False)
+    service_week_summary.to_csv(service_week_summary_csv, index=False)
 
-    ## Monthly service job count summary
+    print(f"Weekly service summary saved: {service_week_summary_csv}")
 
-    service_month_summary = dataframe.dropna(
-        subset=["job_month"]
-    ).groupby(
-        ["dataset_phase", "job_month", "service"],
-        dropna=False
-    ).agg(
-        job_count=("job_id", "count"),
-        mean_duration_sec=("duration_sec", "mean"),
-        total_features_written=("features_written", "sum"),
-        error_flag_count=("error_flag", "sum"),
-        warning_job_count=("has_warning_flag", "sum"),
-    ).reset_index()
-
-    ## Save outputs
-
-    os.makedirs(os.path.dirname(enriched_output_csv), exist_ok=True)
-
-    dataframe.to_csv(enriched_output_csv, index=False)
-    service_summary.to_csv(service_summary_csv, index=False)
-    outcome_summary.to_csv(job_outcome_summary_csv, index=False)
-    service_month_summary.to_csv(service_month_summary_csv, index=False)
-
-    print(f"Enriched dataset saved: {enriched_output_csv}")
-    print(f"Service summary saved: {service_summary_csv}")
-    print(f"Job outcome summary saved: {job_outcome_summary_csv}")
-    print(f"Service monthly summary saved: {service_month_summary_csv}")
-
-    return dataframe, service_summary, outcome_summary, service_month_summary
+    return df, service_week_summary
