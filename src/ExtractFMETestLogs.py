@@ -7,7 +7,7 @@ This script extracts meta information from FME job logs as part of the gaps and 
 """
 
 # Author: x
-# Version: 0.3
+# Version: 0.2
 # Date: 28/05/2026
 
 
@@ -24,17 +24,17 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 INPUT_ROOT = os.path.join(BASE_DIR, "input", "GaOs_FME_job_logs_beta")
-OUTPUT_FILE = os.path.join(BASE_DIR, "output", "fme_log_extracted.csv")
+OUTPUT_FILE = os.path.join(BASE_DIR, "output", "FME_log_extracted", "fme_log_extracted.csv")
 
 
 ## regex patterns
 
 patterns = {
-    # --- command line arguments (backtick wrapped) ---
+    # command line
     "job_id": re.compile(r"--FME_JOB_ID'\s*`([^`]+)`|--FME_JOB_ID\s+`([^`]+)`"),
     "automation": re.compile(r"--FME_AUTOMATION_NAME'\s*`([^`]+)`|--FME_AUTOMATION_NAME\s+`([^`]+)`"),
 
-    # workspace appears in 2 places (command line AND config)
+    # workspace
     "workspace_cfg": re.compile(r"FME_MF_NAME is '([^']+\.fmw)'"),
     "workspace_cmd": re.compile(r"`([^`]+\.fmw)`"),
 
@@ -43,6 +43,13 @@ patterns = {
     "duration": re.compile(r"FME Session Duration:\s+([\d\.]+)\s+seconds"),
     "status": re.compile(r"Translation was (\w+)"),
     "warnings": re.compile(r"(\d+)\s+warning\(s\)"),
+
+    # timestamps
+    "timestamp": re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"),
+
+    # metrics
+    "peak_memory": re.compile(r"peak process memory usage:\s*(\d+)\s*kB", re.IGNORECASE),
+    "process_id": re.compile(r"ProcessID:\s*(\d+)"),
 
     # environment
     "fme_version": re.compile(r"FME\s+([\d\.]+)"),
@@ -76,7 +83,6 @@ patterns = {
 ## Utility Functions
 
 def infer_service(workspace):
-    """Infer service type from workspace name"""
     if not workspace:
         return None, "low"
 
@@ -97,6 +103,13 @@ def parse_time(timestr):
         return None
 
 
+def parse_log_timestamp(timestr):
+    try:
+        return datetime.strptime(timestr, "%Y-%m-%d %H:%M:%S")
+    except:
+        return None
+
+
 ## Parser
 
 def parse_log(file_path):
@@ -107,8 +120,12 @@ def parse_log(file_path):
         "workspace": None,
         "service": None,
         "service_confidence": None,
+
         "start_time": None,
+        "end_time": None,
         "duration_sec": None,
+        "duration_calculated": None,
+
         "status": None,
         "warnings": None,
 
@@ -131,8 +148,15 @@ def parse_log(file_path):
         "features_read": None,
         "features_written": None,
 
+        "peak_memory_kb": None,
+        "process_id": None,
+
         "error_flag": False,
         "error_message": None,
+        "all_errors": None,
+
+        "log_line_count": 0,
+        "last_timestamp_raw": None,
 
         "parse_status": "success",
         "parse_notes": "",
@@ -145,34 +169,39 @@ def parse_log(file_path):
             content = f.read()
 
         lines = content.splitlines()
-
+        record["log_line_count"] = len(lines)
         record["raw_excerpt"] = content[:2000]
 
-        ## ---- Extract command-line parameters ----
+        timestamps = []
+        errors = []
+        peak_memory_values = []
 
+        ## Command-line extraction
         for key in ["job_id", "automation"]:
             match = patterns[key].search(content)
             if match:
                 record[key] = next(g for g in match.groups() if g)
 
-        ## ---- Extract workspace (priority: config > command-line) ----
-
+        ## Workspace extraction
         match = patterns["workspace_cfg"].search(content)
         if match:
             record["workspace"] = match.group(1).strip()
         else:
             matches = patterns["workspace_cmd"].findall(content)
             if matches:
-                # take last .fmw in command (most relevant)
                 record["workspace"] = os.path.basename(matches[-1])
 
-        ## ---- Line-by-line extraction ----
-
+        ## Line parsing
         for line in lines:
+
+            # timestamps (for end_time)
+            ts_match = patterns["timestamp"].match(line)
+            if ts_match:
+                timestamps.append(ts_match.group(1))
 
             for key, pattern in patterns.items():
 
-                if key in ["job_id", "automation", "workspace_cfg", "workspace_cmd"]:
+                if key in ["job_id", "automation", "workspace_cfg", "workspace_cmd", "timestamp"]:
                     continue
 
                 match = pattern.search(line)
@@ -197,9 +226,16 @@ def parse_log(file_path):
                     elif key == "catcov":
                         record["catcov_count"] = int(match.group(1))
 
+                    elif key == "peak_memory":
+                        val = int(match.group(1))
+                        peak_memory_values.append(val)
+
+                    elif key == "process_id":
+                        record["process_id"] = match.group(1)
+
                     elif key == "error":
                         record["error_flag"] = True
-                        record["error_message"] = match.group(1)
+                        errors.append(match.group(1))
 
                     elif key == "join_success":
                         record["db_join_success"] = True
@@ -216,18 +252,36 @@ def parse_log(file_path):
                     else:
                         record[key] = match.group(1).strip()
 
-        ## ---- Derived fields ----
+        ## End time extraction
+        if timestamps:
+            record["last_timestamp_raw"] = timestamps[-1]
+            record["end_time"] = parse_log_timestamp(timestamps[-1])
 
+        ## Calculated duration
+        if record["start_time"] and record["end_time"]:
+            record["duration_calculated"] = (record["end_time"] - record["start_time"]).total_seconds()
+
+        ## Peak memory (max observed)
+        if peak_memory_values:
+            record["peak_memory_kb"] = max(peak_memory_values)
+
+        ## Error aggregation
+        if errors:
+            record["error_message"] = errors[0]
+            record["all_errors"] = " | ".join(errors)
+
+        ## Derived service
         service, confidence = infer_service(record.get("workspace"))
         record["service"] = service
         record["service_confidence"] = confidence
 
-        ## ---- Validation ----
-
+        ## Validation
         if not record["job_id"]:
             record["parse_notes"] += "missing_job_id; "
         if not record["workspace"]:
             record["parse_notes"] += "missing_workspace; "
+        if not record["end_time"]:
+            record["parse_notes"] += "missing_end_time; "
 
         return record
 
