@@ -15,7 +15,7 @@ import matplotlib.dates as mdates
 # -----------------------------------------------------------------------------
 
 csv_path = "static/dates.csv"
-output_path = "output/project_timeline.png"
+output_path = "output/plots/project_timeline.png"
 
 df = pd.read_csv(csv_path, na_values=["n/a", "", " "])
 
