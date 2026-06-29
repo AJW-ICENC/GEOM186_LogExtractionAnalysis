@@ -197,6 +197,7 @@ def parse_log(file_path):
 
     record = {
         "source_file": file_path,
+        "dataset_phase": None,
 
         "job_id": None,
         "automation": None,
@@ -562,15 +563,17 @@ def parse_log(file_path):
         return record
 
 
+
 ## Extraction Runner
 
-def run_extraction(input_root, output_file):
-    """Run extraction across all FME log files."""
+def run_extraction(input_root, output_file, dataset_phase):
+    """Run extraction across all FME log files for a given dataset phase."""
 
     all_records = []
     file_count = 0
 
     print("\nStarting extraction...")
+    print(f"Dataset phase: {dataset_phase}")
     print(f"Input directory: {input_root}")
     print(f"Output file: {output_file}\n")
 
@@ -582,16 +585,19 @@ def run_extraction(input_root, output_file):
                 file_path = os.path.join(root, file)
                 record = parse_log(file_path)
 
+                record["dataset_phase"] = dataset_phase
+
                 all_records.append(record)
                 file_count += 1
 
                 if file_count % 1000 == 0:
                     print(f"Processed {file_count} log files...")
 
-    print(f"\nTotal logs processed: {file_count}")
+    print(f"\nTotal logs processed for {dataset_phase}: {file_count}")
 
     if file_count == 0:
-        raise FileNotFoundError("No log files found. Check input path.")
+        print(f"No log files found for {dataset_phase}. This source will be skipped.")
+        return pd.DataFrame()
 
     dataframe = pd.DataFrame(all_records)
 

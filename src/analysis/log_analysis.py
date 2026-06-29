@@ -7,7 +7,7 @@ This module performs initial analysis on the extracted FME job log dataset.
 """
 
 # Author: x
-# Version: 0.1
+# Version: 0.2
 # Date: 28/05/2026
 
 
@@ -50,7 +50,13 @@ def classify_job_outcome(row):
 
 ## Analysis Runner
 
-def run_analysis(extracted_csv, enriched_output_csv, service_summary_csv, job_outcome_summary_csv):
+def run_analysis(
+    extracted_csv,
+    enriched_output_csv,
+    service_summary_csv,
+    job_outcome_summary_csv,
+    service_month_summary_csv,
+):
     """Run initial analysis on extracted FME log records."""
 
     print("\nStarting analysis...")
@@ -85,6 +91,15 @@ def run_analysis(extracted_csv, enriched_output_csv, service_summary_csv, job_ou
         if column in dataframe.columns:
             dataframe[column] = pd.to_numeric(dataframe[column], errors="coerce")
 
+    date_columns = [
+        "start_time",
+        "end_time",
+    ]
+
+    for column in date_columns:
+        if column in dataframe.columns:
+            dataframe[column] = pd.to_datetime(dataframe[column], errors="coerce")
+
     ## Derived fields
 
     dataframe["zero_output_flag"] = dataframe["features_written"].fillna(0).eq(0)
@@ -103,9 +118,14 @@ def run_analysis(extracted_csv, enriched_output_csv, service_summary_csv, job_ou
 
     dataframe["parse_note_flag"] = dataframe["parse_notes"].fillna("").ne("")
 
+    dataframe["job_month"] = dataframe["start_time"].dt.to_period("M").astype(str)
+
     ## Service summary
 
-    service_summary = dataframe.groupby("service", dropna=False).agg(
+    service_summary = dataframe.groupby(
+        ["dataset_phase", "service"],
+        dropna=False
+    ).agg(
         job_count=("job_id", "count"),
         mean_duration_sec=("duration_sec", "mean"),
         median_duration_sec=("duration_sec", "median"),
@@ -123,11 +143,29 @@ def run_analysis(extracted_csv, enriched_output_csv, service_summary_csv, job_ou
 
     ## Outcome summary
 
-    outcome_summary = dataframe.groupby("job_outcome", dropna=False).agg(
+    outcome_summary = dataframe.groupby(
+        ["dataset_phase", "job_outcome"],
+        dropna=False
+    ).agg(
         job_count=("job_id", "count"),
         mean_duration_sec=("duration_sec", "mean"),
         max_duration_sec=("duration_sec", "max"),
         mean_peak_memory_kb=("peak_memory_kb", "mean"),
+    ).reset_index()
+
+    ## Monthly service job count summary
+
+    service_month_summary = dataframe.dropna(
+        subset=["job_month"]
+    ).groupby(
+        ["dataset_phase", "job_month", "service"],
+        dropna=False
+    ).agg(
+        job_count=("job_id", "count"),
+        mean_duration_sec=("duration_sec", "mean"),
+        total_features_written=("features_written", "sum"),
+        error_flag_count=("error_flag", "sum"),
+        warning_job_count=("has_warning_flag", "sum"),
     ).reset_index()
 
     ## Save outputs
@@ -137,9 +175,11 @@ def run_analysis(extracted_csv, enriched_output_csv, service_summary_csv, job_ou
     dataframe.to_csv(enriched_output_csv, index=False)
     service_summary.to_csv(service_summary_csv, index=False)
     outcome_summary.to_csv(job_outcome_summary_csv, index=False)
+    service_month_summary.to_csv(service_month_summary_csv, index=False)
 
     print(f"Enriched dataset saved: {enriched_output_csv}")
     print(f"Service summary saved: {service_summary_csv}")
     print(f"Job outcome summary saved: {job_outcome_summary_csv}")
+    print(f"Service monthly summary saved: {service_month_summary_csv}")
 
-    return dataframe, service_summary, outcome_summary
+    return dataframe, service_summary, outcome_summary, service_month_summary

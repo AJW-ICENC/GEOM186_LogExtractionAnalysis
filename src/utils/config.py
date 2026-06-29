@@ -7,7 +7,7 @@ This module stores project-level path configuration for the FME log extraction a
 """
 
 # Author: x
-# Version: 0.1
+# Version: 0.2
 # Date: 28/05/2026
 
 
@@ -20,7 +20,12 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-INPUT_ROOT = os.path.join(BASE_DIR, "input", "GaOs_FME_job_logs_beta")
+INPUT_ROOT = os.path.join(BASE_DIR, "input")
+
+INPUT_SOURCES = {
+    "beta": os.path.join(INPUT_ROOT, "GaOs_FME_job_logs_beta"),
+    "live": os.path.join(INPUT_ROOT, "GaOs_FME_job_logs_live"),
+}
 
 OUTPUT_ROOT = os.path.join(BASE_DIR, "output")
 
@@ -28,7 +33,15 @@ EXTRACTED_OUTPUT_DIR = os.path.join(OUTPUT_ROOT, "extracted")
 ANALYSIS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT, "analysis")
 PLOTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT, "plots")
 
-EXTRACTED_CSV = os.path.join(EXTRACTED_OUTPUT_DIR, "fme_log_extracted.csv")
+EXTRACTED_OUTPUTS = {
+    "beta": os.path.join(EXTRACTED_OUTPUT_DIR, "fme_log_extracted_beta.csv"),
+    "live": os.path.join(EXTRACTED_OUTPUT_DIR, "fme_log_extracted_live.csv"),
+}
+
+COMBINED_EXTRACTED_CSV = os.path.join(
+    EXTRACTED_OUTPUT_DIR,
+    "fme_log_extracted_combined.csv"
+)
 
 ANALYSIS_ENRICHED_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
@@ -43,6 +56,11 @@ SERVICE_SUMMARY_CSV = os.path.join(
 JOB_OUTCOME_SUMMARY_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
     "job_outcome_summary.csv"
+)
+
+SERVICE_MONTH_SUMMARY_CSV = os.path.join(
+    ANALYSIS_OUTPUT_DIR,
+    "service_jobs_per_month.csv"
 )
 
 

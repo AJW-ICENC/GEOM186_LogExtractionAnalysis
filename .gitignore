@@ -7,3 +7,6 @@ env/
 ENV/
 config.ini
 output/
+GaOs_FME_job_logs_live/
+input/GaOs_FME_job_logs_live/
+input/
