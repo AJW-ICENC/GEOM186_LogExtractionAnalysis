@@ -1,14 +1,11 @@
 """
-
-
-This module stores project-level path configuration for the FME log extraction and analysis pipeline.
-
-
+This module stores project-level path configuration for the FME log extraction
+and analysis pipeline.
 """
 
 # Author: x
-# Version: 0.2
-# Date: 28/05/2026
+# Version: 0.3
+# Date: 23/07/2026
 
 
 ## Import Modules
@@ -40,27 +37,27 @@ EXTRACTED_OUTPUTS = {
 
 COMBINED_EXTRACTED_CSV = os.path.join(
     EXTRACTED_OUTPUT_DIR,
-    "fme_log_extracted_combined.csv"
+    "fme_log_extracted_combined.csv",
 )
 
 ANALYSIS_ENRICHED_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
-    "extracted_with_analysis_fields.csv"
+    "extracted_with_analysis_fields.csv",
 )
 
 SERVICE_SUMMARY_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
-    "service_summary.csv"
+    "service_summary.csv",
 )
 
 JOB_OUTCOME_SUMMARY_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
-    "job_outcome_summary.csv"
+    "job_outcome_summary.csv",
 )
 
-SERVICE_MONTH_SUMMARY_CSV = os.path.join(
+SERVICE_WEEK_SUMMARY_CSV = os.path.join(
     ANALYSIS_OUTPUT_DIR,
-    "service_jobs_per_month.csv"
+    "service_jobs_per_week.csv",
 )
 
 

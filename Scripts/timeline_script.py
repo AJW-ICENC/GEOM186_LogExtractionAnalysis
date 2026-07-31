@@ -1,8 +1,8 @@
 """
-Script to create a project timeline figure for use in the methodology
+Project Timeline Figure
+Dissertation / Journal Version
 
-Version = 0.4
-Author = x
+Version = 0.9
 """
 
 import pandas as pd
@@ -11,7 +11,7 @@ import matplotlib.dates as mdates
 
 
 # -----------------------------------------------------------------------------
-# Data
+# Inputs
 # -----------------------------------------------------------------------------
 
 csv_path = "static/dates.csv"
@@ -20,168 +20,228 @@ output_path = "output/plots/project_timeline.png"
 df = pd.read_csv(csv_path, na_values=["n/a", "", " "])
 
 for col in ["start_date", "end_date"]:
-    df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+    df[col] = pd.to_datetime(
+        df[col],
+        dayfirst=True,
+        errors="coerce"
+    )
 
-# Fix reversed ranges if any
-reversed_mask = (
+# -----------------------------------------------------------------------------
+# Clean dates
+# -----------------------------------------------------------------------------
+
+mask = (
     df["start_date"].notna()
     & df["end_date"].notna()
     & (df["end_date"] < df["start_date"])
 )
-df.loc[reversed_mask, ["start_date", "end_date"]] = df.loc[
-    reversed_mask, ["end_date", "start_date"]
+
+df.loc[mask, ["start_date", "end_date"]] = df.loc[
+    mask,
+    ["end_date", "start_date"]
 ].to_numpy()
 
-# Classify
+# -----------------------------------------------------------------------------
+# Classification
+# -----------------------------------------------------------------------------
+
 df["type"] = "Milestone"
-df.loc[df["start_date"].notna() & df["end_date"].notna(), "type"] = "Sprint window"
 
-# Sort + layout
-plot_df = df.sort_values("start_date").reset_index(drop=True)
-plot_df["y"] = list(range(len(plot_df), 0, -1))
+df.loc[
+    df["start_date"].notna()
+    & df["end_date"].notna(),
+    "type"
+] = "Sprint"
 
+plot_df = (
+    df.sort_values("start_date")
+    .reset_index(drop=True)
+)
+
+# -----------------------------------------------------------------------------
+# Layout
+# -----------------------------------------------------------------------------
+
+levels = [0.00, 0.18, -0.18, 0.36, -0.36]
+
+plot_df["y"] = [
+    levels[i % len(levels)]
+    for i in range(len(plot_df))
+]
 
 # -----------------------------------------------------------------------------
 # Style
 # -----------------------------------------------------------------------------
 
-PAL = {
-    "milestone": "#34495E",
-    "sprint": "#2A9D8F",
-    "sprint_edge": "#176D64",
-    "live": "#A5652A",
-    "hotfix": "#7A5195",
-    "grid": "#E6E6E6",
-    "row": "#F8F8F8",
-    "text": "#1A1A1A",
-}
-
 plt.rcParams.update(
     {
-        "font.family": "DejaVu Sans",
-        "font.size": 9,
-        "axes.titlesize": 13,
-        "axes.titleweight": "bold",
-        "axes.labelsize": 9.5,
-        "xtick.labelsize": 8.5,
+        "font.family": "Times New Roman",
+        "font.size": 10,
+        "axes.labelsize": 10,
+        "xtick.labelsize": 9,
         "ytick.labelsize": 9,
         "figure.dpi": 300,
         "savefig.dpi": 600,
-        "axes.linewidth": 0.7,
     }
 )
 
-fig, ax = plt.subplots(figsize=(8.2, 4.6), constrained_layout=True)
-
+fig, ax = plt.subplots(
+    figsize=(8.2, 2.6),
+    constrained_layout=True
+)
 
 # -----------------------------------------------------------------------------
-# Plot
+# Colours
 # -----------------------------------------------------------------------------
 
-# Alternating rows
-for _, r in plot_df.iterrows():
-    if int(r["y"]) % 2 == 0:
-        ax.axhspan(r["y"] - 0.38, r["y"] + 0.38, color=PAL["row"], zorder=0)
+COLOURS = {
+    "default": "#34495E",
+    "live": "#2A9D8F",
+    "hotfix": "#E76F51",
+    "sprint": "#707070",
+}
 
-for _, r in plot_df.iterrows():
-    y = r["y"]
-    title = r["Title"]
-    version = "" if pd.isna(r["version"]) else f" v{r['version']}"
+# -----------------------------------------------------------------------------
+# Plot events
+# -----------------------------------------------------------------------------
 
-    # --- Sprint windows ---
-    if r["type"] == "Sprint window":
+for _, row in plot_df.iterrows():
+
+    label = row["Title"]
+
+    if pd.notna(row["version"]):
+        label += f" v{row['version']}"
+
+    y = row["y"]
+
+    # -------------------------------------------------------------------------
+    # Sprint windows
+    # -------------------------------------------------------------------------
+
+    if row["type"] == "Sprint":
+
         ax.plot(
-            [r["start_date"], r["end_date"]],
+            [row["start_date"], row["end_date"]],
             [y, y],
-            color=PAL["sprint"],
-            lw=7.5,
+            color=COLOURS["sprint"],
+            linewidth=4,
             solid_capstyle="butt",
-            zorder=3,
+            zorder=2,
         )
 
-        # edges
-        ax.plot(
-            [r["start_date"], r["start_date"]],
-            [y - 0.17, y + 0.17],
-            color=PAL["sprint_edge"],
-            lw=1.3,
-            zorder=4,
-        )
-        ax.plot(
-            [r["end_date"], r["end_date"]],
-            [y - 0.17, y + 0.17],
-            color=PAL["sprint_edge"],
-            lw=1.3,
-            zorder=4,
-        )
-
-    # --- Milestones ---
-    else:
-        if "HotFix" in title:
-            colour = PAL["hotfix"]
-            marker = "D"
-        elif "Live" in title:
-            colour = PAL["live"]
-            marker = "o"
-        else:
-            colour = PAL["milestone"]
-            marker = "o"
-
-        ax.scatter(
-            [r["start_date"]],
-            [y],
-            s=52,
-            marker=marker,
-            color=colour,
-            edgecolor="white",
-            linewidth=0.8,
-            zorder=5,
-        )
+        midpoint = row["start_date"] + (
+            row["end_date"] - row["start_date"]
+        ) / 2
 
         ax.annotate(
-            f"{title}{version}",
-            xy=(r["start_date"], y),
-            xytext=(10, 0),
+            label,
+            xy=(midpoint, y),
+            xytext=(0, 12),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8.5,
+        )
+
+    # -------------------------------------------------------------------------
+    # Milestones
+    # -------------------------------------------------------------------------
+
+    else:
+
+        title = str(row["Title"])
+
+        if "Live" in title:
+            colour = COLOURS["live"]
+            size = 95
+
+        elif "HotFix" in title:
+            colour = COLOURS["hotfix"]
+            size = 95
+
+        else:
+            colour = COLOURS["default"]
+            size = 80
+
+        ax.scatter(
+            row["start_date"],
+            y,
+            s=size,
+            color=colour,
+            edgecolor="white",
+            linewidth=0.7,
+            zorder=4,
+        )
+
+        label_y = 10 if y >= 0 else -10
+
+        ax.annotate(
+            label,
+            xy=(row["start_date"], y),
+            xytext=(8, label_y),
             textcoords="offset points",
             ha="left",
             va="center",
-            fontsize=8.2,
-            color=PAL["text"],
+            fontsize=9,
         )
 
+# -----------------------------------------------------------------------------
+# Axis formatting
+# -----------------------------------------------------------------------------
+
+xmin = (
+    plot_df["start_date"].min()
+    - pd.Timedelta(days=20)
+)
+
+xmax = (
+    pd.concat(
+        [
+            plot_df["start_date"],
+            plot_df["end_date"]
+        ]
+    )
+    .dropna()
+    .max()
+    + pd.Timedelta(days=20)
+)
+
+ax.set_xlim(xmin, xmax)
+ax.set_ylim(-0.55, 0.55)
+
+ax.set_yticks([])
+
+ax.xaxis.set_major_locator(
+    mdates.MonthLocator(interval=1)
+)
+
+ax.xaxis.set_major_formatter(
+    mdates.DateFormatter("%b\n%Y")
+)
+
+ax.grid(
+    axis="x",
+    linestyle=":",
+    linewidth=0.8,
+    color="0.82"
+)
+
+# Clean axis appearance
+
+for spine in ["top", "right", "left"]:
+    ax.spines[spine].set_visible(False)
+
+ax.spines["bottom"].set_linewidth(0.8)
+
+ax.set_xlabel("Date")
 
 # -----------------------------------------------------------------------------
-# Axis
+# Save
 # -----------------------------------------------------------------------------
 
-labels = []
-for _, r in plot_df.iterrows():
-    version = "" if pd.isna(r["version"]) else f" v{r['version']}"
-    labels.append(f"{r['Title']}{version}")
+fig.savefig(
+    output_path,
+    bbox_inches="tight"
+)
 
-ax.set_yticks(plot_df["y"])
-ax.set_yticklabels(labels)
-ax.tick_params(axis="y", length=0, pad=8)
-
-start = plot_df["start_date"].min() - pd.Timedelta(days=25)
-end = pd.concat([plot_df["start_date"], plot_df["end_date"]]).dropna().max() + pd.Timedelta(days=40)
-
-ax.set_xlim(start, end)
-ax.set_ylim(0.45, len(plot_df) + 0.65)
-
-ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
-ax.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
-
-ax.grid(axis="x", color=PAL["grid"], lw=0.7)
-ax.grid(axis="y", visible=False)
-
-for s in ["top", "right", "left"]:
-    ax.spines[s].set_visible(False)
-ax.spines["bottom"].set_color("#555555")
-
-ax.set_xlabel("Project date")
-ax.set_title("Gaps & Overlaps Project Timeline", loc="left", pad=10)
-
-
-fig.savefig(output_path, bbox_inches="tight")
-plt.close(fig)
+plt.close()

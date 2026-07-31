@@ -1,14 +1,20 @@
 """
+This module extracts meta information from FME job logs as part of the
+Gaps and Overlaps beta/live testing period.
 
+Error and warning counts are extracted primarily from the FME translation
+summary line, for example:
 
-This module extracts meta information from FME job logs as part of the gaps and overlaps beta testing period.
+Translation FAILED with 3 error(s) and 12 warning(s) (0 feature(s) output)
 
-
+Individual ERROR and WARN lines are retained only as diagnostic text fields.
 """
 
-# Author: x
-# Version: 0.2
-# Date: 29/06/2026
+# Author: Alex Wallage
+# Version: 4
+# Date: 23/07/2026
+
+## Enhanced by AI
 
 
 ## Import Modules
@@ -33,8 +39,21 @@ patterns = {
     # execution
     "start_time": re.compile(r"System Time:\s+(\d{14})"),
     "duration": re.compile(r"FME Session Duration:\s+([\d\.]+)\s+seconds"),
-    "status": re.compile(r"Translation was (\w+)"),
-    "warnings": re.compile(r"(\d+)\s+warning\(s\)"),
+
+    # Authoritative FME translation summary
+    "translation_summary": re.compile(
+        r"Translation\s+(?:was\s+)?(SUCCESSFUL|FAILED)\s+with\s+"
+        r"(\d+)\s+error\(s\)\s+and\s+"
+        r"(\d+)\s+warning\(s\)\s+"
+        r"\((\d+)\s+feature\(s\)\s+output\)",
+        re.IGNORECASE,
+    ),
+
+    # Fallback where count summary is not present
+    "translation_status": re.compile(
+        r"Translation\s+(?:was\s+)?(SUCCESSFUL|FAILED)",
+        re.IGNORECASE,
+    ),
 
     # timestamps
     "timestamp": re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"),
@@ -91,14 +110,13 @@ patterns = {
     # feature metrics
     "features_read": re.compile(r"Total Features Read\s+(\d+)"),
     "features_written": re.compile(r"Total Features Written\s+(\d+)"),
-    "features_output": re.compile(r"Translation was \w+ with \d+ warning\(s\) \((\d+) feature\(s\) output\)"),
     "done_reading": re.compile(r"Done reading\s+(\d+)\s+features"),
     "database_read_complete": re.compile(r"Database read complete\. Retrieved\s+(.+?)\s+feature\(s\)"),
     "geometry_processed": re.compile(r"Processed\s+(\d+)\s+of\s+(\d+)\s+features"),
 
-    # errors / warnings
-    "error": re.compile(r"ERROR[:\s]+(.+)", re.IGNORECASE),
-    "warn": re.compile(r"WARN\|(.+)|WARN\s+(.+)", re.IGNORECASE),
+    # diagnostic errors / warnings only
+    "error_line": re.compile(r"\|ERROR\s*\|(.+)", re.IGNORECASE),
+    "warn_line": re.compile(r"\|WARN\s*\|(.+)", re.IGNORECASE),
 }
 
 
@@ -211,9 +229,17 @@ def parse_log(file_path):
         "duration_sec": None,
         "duration_calculated": None,
 
-        "status": None,
-        "warnings": None,
+        # New primary outcome fields
+        "translation_status": None,
+        "error_count": 0,
+        "warning_count": 0,
         "features_output": None,
+        "translation_summary_found": False,
+
+        # Backwards-compatible aliases
+        "status": None,
+        "warnings": 0,
+        "error_flag": False,
 
         "fme_version": None,
         "workspace_saved_version": None,
@@ -264,13 +290,13 @@ def parse_log(file_path):
         "current_memory_kb": None,
         "process_id": None,
 
-        "error_flag": False,
-        "error_message": None,
+        # Diagnostic text fields only
+        "first_error_message": None,
         "all_errors": None,
-        "error_count": 0,
+        "diagnostic_error_line_count": 0,
 
         "all_warnings_text": None,
-        "warning_text_count": 0,
+        "diagnostic_warning_line_count": 0,
 
         "log_line_count": 0,
         "last_timestamp_raw": None,
@@ -291,8 +317,8 @@ def parse_log(file_path):
         record["raw_excerpt"] = content[:2000]
 
         timestamps = []
-        errors = []
-        warning_text = []
+        diagnostic_errors = []
+        diagnostic_warnings = []
         peak_memory_values = []
         current_memory_values = []
         geometry_processed_values = []
@@ -349,6 +375,34 @@ def parse_log(file_path):
             if timestamp_match:
                 timestamps.append(timestamp_match.group(1))
 
+            ## Authoritative translation summary
+
+            summary_match = patterns["translation_summary"].search(line)
+
+            if summary_match:
+                record["translation_summary_found"] = True
+                record["translation_status"] = summary_match.group(1).upper()
+                record["error_count"] = int(summary_match.group(2))
+                record["warning_count"] = int(summary_match.group(3))
+                record["features_output"] = int(summary_match.group(4))
+
+                # Backwards-compatible aliases
+                record["status"] = record["translation_status"]
+                record["warnings"] = record["warning_count"]
+                record["error_flag"] = record["error_count"] > 0
+
+                continue
+
+            ## Fallback translation status
+
+            status_match = patterns["translation_status"].search(line)
+
+            if status_match and not record["translation_status"]:
+                record["translation_status"] = status_match.group(1).upper()
+                record["status"] = record["translation_status"]
+
+            ## Other extraction patterns
+
             for key, pattern in patterns.items():
 
                 if key in [
@@ -357,6 +411,8 @@ def parse_log(file_path):
                     "workspace_cfg",
                     "workspace_cmd",
                     "timestamp",
+                    "translation_summary",
+                    "translation_status",
                     "engine",
                     "user",
                     "source_dataset_path",
@@ -380,15 +436,6 @@ def parse_log(file_path):
 
                 elif key == "duration":
                     record["duration_sec"] = float(match.group(1))
-
-                elif key == "status":
-                    record["status"] = match.group(1).strip()
-
-                elif key == "warnings":
-                    record["warnings"] = int(match.group(1))
-
-                elif key == "features_output":
-                    record["features_output"] = int(match.group(1))
 
                 elif key == "features_read":
                     record["features_read"] = int(match.group(1))
@@ -418,15 +465,11 @@ def parse_log(file_path):
                 elif key == "process_id":
                     record["process_id"] = match.group(1)
 
-                elif key == "error":
-                    record["error_flag"] = True
-                    errors.append(match.group(1).strip())
+                elif key == "error_line":
+                    diagnostic_errors.append(match.group(1).strip())
 
-                elif key == "warn":
-                    warn_value = get_first_group(match)
-
-                    if warn_value:
-                        warning_text.append(warn_value)
+                elif key == "warn_line":
+                    diagnostic_warnings.append(match.group(1).strip())
 
                 elif key == "join_success":
                     record["db_join_success"] = True
@@ -520,18 +563,36 @@ def parse_log(file_path):
         if geometry_total_values:
             record["max_geometry_total"] = max(geometry_total_values)
 
-        ## Error aggregation
+        ## Diagnostic error/warning aggregation
 
-        if errors:
-            record["error_message"] = errors[0]
-            record["all_errors"] = " | ".join(errors)
-            record["error_count"] = len(errors)
+        if diagnostic_errors:
+            record["first_error_message"] = diagnostic_errors[0]
+            record["all_errors"] = " | ".join(diagnostic_errors)
+            record["diagnostic_error_line_count"] = len(diagnostic_errors)
 
-        ## Warning aggregation
+        if diagnostic_warnings:
+            record["all_warnings_text"] = " | ".join(diagnostic_warnings)
+            record["diagnostic_warning_line_count"] = len(diagnostic_warnings)
 
-        if warning_text:
-            record["all_warnings_text"] = " | ".join(warning_text)
-            record["warning_text_count"] = len(warning_text)
+        ## Fallback if no translation summary is available
+
+        if not record["translation_summary_found"]:
+            record["parse_notes"] += "missing_translation_summary; "
+
+            if record["translation_status"]:
+                record["status"] = record["translation_status"]
+
+            # Only use diagnostic ERROR lines as a fallback where the
+            # authoritative FME summary line is absent.
+            if record["error_count"] == 0 and diagnostic_errors:
+                record["error_count"] = len(diagnostic_errors)
+                record["error_flag"] = True
+                record["parse_notes"] += "error_count_from_diagnostic_lines; "
+
+            if record["warning_count"] == 0 and diagnostic_warnings:
+                record["warning_count"] = len(diagnostic_warnings)
+                record["warnings"] = record["warning_count"]
+                record["parse_notes"] += "warning_count_from_diagnostic_lines; "
 
         ## Derived fields
 
@@ -542,6 +603,12 @@ def parse_log(file_path):
 
         record["service"] = service
         record["service_confidence"] = confidence
+
+        ## Final backwards-compatible flags
+
+        record["status"] = record["translation_status"]
+        record["warnings"] = record["warning_count"]
+        record["error_flag"] = record["error_count"] > 0
 
         ## Validation
 
@@ -554,6 +621,9 @@ def parse_log(file_path):
         if not record["end_time"]:
             record["parse_notes"] += "missing_end_time; "
 
+        if not record["translation_status"]:
+            record["parse_notes"] += "missing_translation_status; "
+
         return record
 
     except Exception as error:
@@ -561,7 +631,6 @@ def parse_log(file_path):
         record["parse_notes"] = str(error)
 
         return record
-
 
 
 ## Extraction Runner

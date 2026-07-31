@@ -1,14 +1,13 @@
 """
-
-
 This is the main entry point for the FME log extraction and analysis pipeline.
-
 
 """
 
-# Author: x
-# Version: 0.2
-# Date: 29/06/2026
+# Author: Alex Wallage
+# Version: 4
+# Date: 23/07/2026
+
+## Enhanced by AI
 
 
 ## Import Modules
@@ -24,7 +23,7 @@ from utils.config import (
     ANALYSIS_ENRICHED_CSV,
     SERVICE_SUMMARY_CSV,
     JOB_OUTCOME_SUMMARY_CSV,
-    SERVICE_MONTH_SUMMARY_CSV,
+    SERVICE_WEEK_SUMMARY_CSV,
     PLOTS_OUTPUT_DIR,
     create_output_directories,
 )
@@ -155,24 +154,21 @@ def main():
         output_file=COMBINED_EXTRACTED_CSV,
     )
 
-
     run_analysis(
         extracted_csv=COMBINED_EXTRACTED_CSV,
         enriched_output_csv=ANALYSIS_ENRICHED_CSV,
         service_summary_csv=SERVICE_SUMMARY_CSV,
         job_outcome_summary_csv=JOB_OUTCOME_SUMMARY_CSV,
-        service_week_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
+        service_week_summary_csv=SERVICE_WEEK_SUMMARY_CSV,
     )
-
 
     if not args.skip_plots:
         run_plots(
             enriched_csv=ANALYSIS_ENRICHED_CSV,
             service_summary_csv=SERVICE_SUMMARY_CSV,
-            service_week_summary_csv=SERVICE_MONTH_SUMMARY_CSV,
+            service_week_summary_csv=SERVICE_WEEK_SUMMARY_CSV,
             plots_output_dir=PLOTS_OUTPUT_DIR,
         )
-
 
     print("\nPipeline complete.\n")
 
