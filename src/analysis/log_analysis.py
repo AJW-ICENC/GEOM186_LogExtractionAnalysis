@@ -1,16 +1,19 @@
 """
-This module performs initial analysis on the extracted FME job log dataset.
 
-Job outcome analysis uses the authoritative FME translation summary fields:
+Performs initial analysis on the extracted FME job log dataset.
 
-- translation_status
-- error_count
-- warning_count
-- features_output
+Immediately provides high-level stats
 
-Diagnostic ERROR/WARN text is retained in the extracted dataset but is not used
-as the primary source for analysis.
 """
+
+# Author: Alex Wallage
+# Version: 2
+# Date: 23/07/2026
+
+## Enhanced by AI
+
+
+## Import Modules
 
 import os
 import pandas as pd

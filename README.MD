@@ -34,30 +34,9 @@ The central flowline performs initial analysis to assess outputs immediately but
 
 ---
 
-## Project Structure
-
-```
-project_root/
-│
-├── input/
-│   └── GaOs_FME_job_logs_beta/
-│       └── {grouped_by_thousands}/
-│           └── job_{jobid}.log
-│
-├── output/
-│   └── fme_log_extracted.csv
-│
-├── src/
-│   └── ExtractFMETestLogs.py
-│
-└── README.md
-```
-
----
-
 ## Methodology
 
-### Phase 1: Log Extraction
+### Log Extraction
 
 The extraction script processes all `.log` files and captures:
 
@@ -105,7 +84,3 @@ The extraction script processes all `.log` files and captures:
 - Source file path
 
 ---
-
-### Phase 2: Data Structuring
-
-All extracted records are written to:

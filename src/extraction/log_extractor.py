@@ -1,13 +1,9 @@
 """
-This module extracts meta information from FME job logs as part of the
+
+Extracts meta information from FME job logs as part of the
 Gaps and Overlaps beta/live testing period.
 
-Error and warning counts are extracted primarily from the FME translation
-summary line, for example:
 
-Translation FAILED with 3 error(s) and 12 warning(s) (0 feature(s) output)
-
-Individual ERROR and WARN lines are retained only as diagnostic text fields.
 """
 
 # Author: Alex Wallage
@@ -40,7 +36,7 @@ patterns = {
     "start_time": re.compile(r"System Time:\s+(\d{14})"),
     "duration": re.compile(r"FME Session Duration:\s+([\d\.]+)\s+seconds"),
 
-    # Authoritative FME translation summary
+    # FME translation summary
     "translation_summary": re.compile(
         r"Translation\s+(?:was\s+)?(SUCCESSFUL|FAILED)\s+with\s+"
         r"(\d+)\s+error\(s\)\s+and\s+"
@@ -58,7 +54,7 @@ patterns = {
     # timestamps
     "timestamp": re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"),
 
-    # process / memory
+    # memory
     "peak_memory": re.compile(r"peak process memory usage:\s*(\d+)\s*kB", re.IGNORECASE),
     "current_memory": re.compile(r"current process memory usage:\s*(\d+)\s*kB", re.IGNORECASE),
     "process_id": re.compile(r"ProcessID:\s*(\d+)"),
@@ -118,6 +114,7 @@ patterns = {
     "error_line": re.compile(r"\|ERROR\s*\|(.+)", re.IGNORECASE),
     "warn_line": re.compile(r"\|WARN\s*\|(.+)", re.IGNORECASE),
 }
+
 
 
 ## Utility Functions
@@ -208,6 +205,7 @@ def extract_job_id_from_source_file(source_file):
     return None
 
 
+
 ## Parser
 
 def parse_log(file_path):
@@ -229,14 +227,12 @@ def parse_log(file_path):
         "duration_sec": None,
         "duration_calculated": None,
 
-        # New primary outcome fields
         "translation_status": None,
         "error_count": 0,
         "warning_count": 0,
         "features_output": None,
         "translation_summary_found": False,
 
-        # Backwards-compatible aliases
         "status": None,
         "warnings": 0,
         "error_flag": False,
@@ -290,7 +286,6 @@ def parse_log(file_path):
         "current_memory_kb": None,
         "process_id": None,
 
-        # Diagnostic text fields only
         "first_error_message": None,
         "all_errors": None,
         "diagnostic_error_line_count": 0,
@@ -366,7 +361,7 @@ def parse_log(file_path):
             if matches:
                 record["workspace"] = os.path.basename(matches[-1])
 
-        ## Line-by-line extraction
+        ## extraction
 
         for line in lines:
 
@@ -375,7 +370,7 @@ def parse_log(file_path):
             if timestamp_match:
                 timestamps.append(timestamp_match.group(1))
 
-            ## Authoritative translation summary
+            ## translation summary
 
             summary_match = patterns["translation_summary"].search(line)
 
@@ -386,7 +381,6 @@ def parse_log(file_path):
                 record["warning_count"] = int(summary_match.group(3))
                 record["features_output"] = int(summary_match.group(4))
 
-                # Backwards-compatible aliases
                 record["status"] = record["translation_status"]
                 record["warnings"] = record["warning_count"]
                 record["error_flag"] = record["error_count"] > 0
@@ -563,7 +557,7 @@ def parse_log(file_path):
         if geometry_total_values:
             record["max_geometry_total"] = max(geometry_total_values)
 
-        ## Diagnostic error/warning aggregation
+        ## Diagnostic error/warning
 
         if diagnostic_errors:
             record["first_error_message"] = diagnostic_errors[0]
@@ -582,8 +576,6 @@ def parse_log(file_path):
             if record["translation_status"]:
                 record["status"] = record["translation_status"]
 
-            # Only use diagnostic ERROR lines as a fallback where the
-            # authoritative FME summary line is absent.
             if record["error_count"] == 0 and diagnostic_errors:
                 record["error_count"] = len(diagnostic_errors)
                 record["error_flag"] = True

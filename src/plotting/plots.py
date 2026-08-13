@@ -1,14 +1,29 @@
 """
-This module creates figures from analysed FME log data.
+
+creates figures from analysed FME log data. 
+
+Gives immediate visualisation of outputs before more work is required.
+
 """
+
+# Author: Alex Wallage
+# Version: 2
+# Date: 23/07/2026
+
+## Enhanced with AI
+
+
+## Import Modules
 
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
+## Assisatance Functions
+
 def save_plot(output_path):
-    """Save the current matplotlib figure."""
+    """Save matplotlib figure."""
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.tight_layout()
@@ -27,10 +42,6 @@ def load_project_dates():
         return pd.DataFrame(columns=["date", "Title"])
 
     df = pd.read_csv(dates_path)
-
-    if "start_date" not in df.columns:
-        print("Project dates file does not contain a start_date column.")
-        return pd.DataFrame(columns=["date", "Title"])
 
     df["date"] = pd.to_datetime(df["start_date"], dayfirst=True, errors="coerce")
 
@@ -59,6 +70,8 @@ def add_project_milestones(dates_df):
         )
 
 
+## Plot functions
+
 def plot_jobs_per_week(service_week_summary, dates_df, output_path):
     """Plot number of FME jobs per week by service."""
 
@@ -76,7 +89,6 @@ def plot_jobs_per_week(service_week_summary, dates_df, output_path):
 
     add_project_milestones(dates_df)
 
-    plt.title("FME Jobs per Week by Service")
     plt.xlabel("Week")
     plt.ylabel("Job Count")
     plt.legend()
@@ -102,7 +114,6 @@ def plot_errors_per_week(service_week_summary, dates_df, output_path):
 
     add_project_milestones(dates_df)
 
-    plt.title("FME Errors per Week by Service")
     plt.xlabel("Week")
     plt.ylabel("Total FME-Reported Errors")
     plt.legend()
@@ -128,7 +139,6 @@ def plot_warnings_per_week(service_week_summary, dates_df, output_path):
 
     add_project_milestones(dates_df)
 
-    plt.title("FME Warnings per Week by Service")
     plt.xlabel("Week")
     plt.ylabel("Total FME-Reported Warnings")
     plt.legend()
@@ -154,7 +164,6 @@ def plot_failed_jobs_per_week(service_week_summary, dates_df, output_path):
 
     add_project_milestones(dates_df)
 
-    plt.title("Failed FME Jobs per Week by Service")
     plt.xlabel("Week")
     plt.ylabel("Failed Jobs")
     plt.legend()
@@ -180,7 +189,6 @@ def plot_failure_rate_per_week(service_week_summary, dates_df, output_path):
 
     add_project_milestones(dates_df)
 
-    plt.title("FME Job Failure Rate per Week by Service")
     plt.xlabel("Week")
     plt.ylabel("Failure Rate")
     plt.legend()
@@ -188,6 +196,8 @@ def plot_failure_rate_per_week(service_week_summary, dates_df, output_path):
 
     save_plot(output_path)
 
+
+## Controls running of all plots
 
 def run_plots(
     enriched_csv,

@@ -1,5 +1,5 @@
 """
-This is the main entry point for the FME log extraction and analysis pipeline.
+Triggers main process flow for the FME log extraction and analysis
 
 """
 
@@ -33,10 +33,10 @@ from analysis.log_analysis import run_analysis
 from plotting.plots import run_plots
 
 
-## Argument Handling
+## Argument Handling Functions
 
 def parse_arguments():
-    """Parse command line arguments."""
+    """Parse command line arguments"""
 
     parser = argparse.ArgumentParser(
         description="Run the FME log extraction and analysis pipeline."
@@ -64,7 +64,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-## Pipeline Helpers
+## Assistance Functions
 
 def get_selected_phases(phase_argument):
     """Return selected dataset phases based on command line argument."""
@@ -129,7 +129,6 @@ def main():
     args = parse_arguments()
 
     print("\nGEOM186 - FME Log Extraction and Analysis")
-    print("-----------------------------------------")
     print(f"Selected phase: {args.phase}")
     print(f"Force extraction: {args.force_extract}")
     print(f"Skip plots: {args.skip_plots}\n")
@@ -170,7 +169,7 @@ def main():
             plots_output_dir=PLOTS_OUTPUT_DIR,
         )
 
-    print("\nPipeline complete.\n")
+    print("\Processing complete.\n")
 
 
 if __name__ == "__main__":

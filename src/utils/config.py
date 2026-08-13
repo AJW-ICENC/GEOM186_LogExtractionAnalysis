@@ -1,11 +1,15 @@
 """
-This module stores project-level path configuration for the FME log extraction
-and analysis pipeline.
+
+Stores project-level path configuration
+
 """
 
-# Author: x
-# Version: 0.3
+# Author: Alex Wallage
+# Version: 3
 # Date: 23/07/2026
+
+
+## Enhanced with AI
 
 
 ## Import Modules

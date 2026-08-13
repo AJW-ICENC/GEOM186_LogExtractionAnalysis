@@ -1,23 +1,31 @@
 """
-Project Timeline Figure
-Dissertation / Journal Version
 
-Version = 0.9
+Project Timeline Figure
+
 """
+
+
+# Author: Alex Wallage
+# Version: 2
+# Date: 20/07/2026
+
+## Enhanced by AI
+
+
+## Import modules
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
-# -----------------------------------------------------------------------------
+
 # Inputs
-# -----------------------------------------------------------------------------
 
 csv_path = "static/dates.csv"
 output_path = "output/plots/project_timeline.png"
 
-df = pd.read_csv(csv_path, na_values=["n/a", "", " "])
+df = pd.read_csv(csv_path)
 
 for col in ["start_date", "end_date"]:
     df[col] = pd.to_datetime(
@@ -26,9 +34,8 @@ for col in ["start_date", "end_date"]:
         errors="coerce"
     )
 
-# -----------------------------------------------------------------------------
+
 # Clean dates
-# -----------------------------------------------------------------------------
 
 mask = (
     df["start_date"].notna()
@@ -41,9 +48,8 @@ df.loc[mask, ["start_date", "end_date"]] = df.loc[
     ["end_date", "start_date"]
 ].to_numpy()
 
-# -----------------------------------------------------------------------------
+
 # Classification
-# -----------------------------------------------------------------------------
 
 df["type"] = "Milestone"
 
@@ -58,9 +64,8 @@ plot_df = (
     .reset_index(drop=True)
 )
 
-# -----------------------------------------------------------------------------
+
 # Layout
-# -----------------------------------------------------------------------------
 
 levels = [0.00, 0.18, -0.18, 0.36, -0.36]
 
@@ -69,9 +74,8 @@ plot_df["y"] = [
     for i in range(len(plot_df))
 ]
 
-# -----------------------------------------------------------------------------
+
 # Style
-# -----------------------------------------------------------------------------
 
 plt.rcParams.update(
     {
@@ -90,9 +94,8 @@ fig, ax = plt.subplots(
     constrained_layout=True
 )
 
-# -----------------------------------------------------------------------------
+
 # Colours
-# -----------------------------------------------------------------------------
 
 COLOURS = {
     "default": "#34495E",
@@ -101,9 +104,8 @@ COLOURS = {
     "sprint": "#707070",
 }
 
-# -----------------------------------------------------------------------------
+
 # Plot events
-# -----------------------------------------------------------------------------
 
 for _, row in plot_df.iterrows():
 
@@ -114,9 +116,8 @@ for _, row in plot_df.iterrows():
 
     y = row["y"]
 
-    # -------------------------------------------------------------------------
+    
     # Sprint windows
-    # -------------------------------------------------------------------------
 
     if row["type"] == "Sprint":
 
@@ -143,9 +144,8 @@ for _, row in plot_df.iterrows():
             fontsize=8.5,
         )
 
-    # -------------------------------------------------------------------------
+    
     # Milestones
-    # -------------------------------------------------------------------------
 
     else:
 
@@ -185,9 +185,8 @@ for _, row in plot_df.iterrows():
             fontsize=9,
         )
 
-# -----------------------------------------------------------------------------
+
 # Axis formatting
-# -----------------------------------------------------------------------------
 
 xmin = (
     plot_df["start_date"].min()
@@ -226,8 +225,6 @@ ax.grid(
     color="0.82"
 )
 
-# Clean axis appearance
-
 for spine in ["top", "right", "left"]:
     ax.spines[spine].set_visible(False)
 
@@ -235,9 +232,8 @@ ax.spines["bottom"].set_linewidth(0.8)
 
 ax.set_xlabel("Date")
 
-# -----------------------------------------------------------------------------
+
 # Save
-# -----------------------------------------------------------------------------
 
 fig.savefig(
     output_path,
