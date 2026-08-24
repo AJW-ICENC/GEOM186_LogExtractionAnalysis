@@ -490,7 +490,6 @@ def plot_reduction_line_figure(
     metric_column,
     output_figure,
     y_label,
-    title_label,
     value_suffix="%",
 ):
     """Create a sequential line chart showing percentage reduction."""
@@ -599,12 +598,6 @@ def plot_reduction_line_figure(
         fontsize=11,
     )
 
-    ax.set_title(
-        title_label,
-        fontsize=14,
-        fontweight="bold",
-    )
-
     ax.grid(
         True,
         axis="y",
@@ -656,10 +649,7 @@ plot_reduction_line_figure(
     metric_column="memory_mean_pct_reduction",
     output_figure=MEMORY_OUTPUT_FIGURE,
     y_label=(
-        "Percentage Reduction in Mean Peak Process Memory Usage"
-    ),
-    title_label=(
-        "Peak Memory Usage Reduction Relative to After Sprint 1"
+        "Percentage Reduction in Mean Peak Process Memory Usage (%)"
     ),
 )
 
@@ -670,10 +660,7 @@ plot_reduction_line_figure(
     metric_column="duration_median_pct_reduction",
     output_figure=DURATION_OUTPUT_FIGURE,
     y_label=(
-        "Percentage Reduction in Median Job Duration"
-    ),
-    title_label=(
-        "Job Duration Reduction Relative to After Sprint 1"
+        "Percentage Reduction in Median Job Duration (%)"
     ),
 )
 

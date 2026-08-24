@@ -275,10 +275,45 @@ deployment_date = pd.Timestamp(
     LIVE_DEPLOYMENT_DATE
 )
 
+sprint_1_end = sprints.iloc[0]["end_date"]
+sprint_2_end = sprints.iloc[1]["end_date"]
+sprint_3_end = sprints.iloc[2]["end_date"]
+
+periods = [
+    {
+        "label": "Pre Sprint 1",
+        "start": weekly["job_week"].min(),
+        "end": sprint_1_end,
+    },
+    {
+        "label": "After Sprint 1",
+        "start": sprint_1_end,
+        "end": sprint_2_end,
+    },
+    {
+        "label": "After Sprint 2",
+        "start": sprint_2_end,
+        "end": sprint_3_end,
+    },
+    {
+        "label": "After Sprint 3",
+        "start": sprint_3_end,
+        "end": deployment_date,
+    },
+    {
+        "label" : "Deployed",
+        "start" : deployment_date,
+        "end" : weekly["job_week"].max(), 
+    },
+]
+
 for ax, service in zip(
     axes,
     SERVICES,
 ):
+    service_data = weekly[
+    weekly["service"] == service
+    ].copy()
 
     service_weekly = weekly[
         weekly["service"] == service
@@ -352,6 +387,7 @@ for ax, service in zip(
             markersize=MARKER_SIZE,
             label=f"{phase}: failed jobs",
             zorder=4,
+            alpha=0.6,
         )
 
         ax.plot(
@@ -361,9 +397,9 @@ for ax, service in zip(
             linewidth=LINE_WIDTH,
             marker="s",
             markersize=MARKER_SIZE,
-            linestyle="--",
             label=f"{phase}: jobs with errors",
             zorder=4,
+            alpha=0.6,
         )
 
     # Live deployment marker
@@ -374,6 +410,7 @@ for ax, service in zip(
         linestyle="--",
         linewidth=1.6,
         zorder=5,
+        alpha=0.5,
     )
 
     ax.text(
@@ -413,16 +450,96 @@ for ax, service in zip(
 
     ax.grid(
         True,
-        axis="y",
         linestyle="--",
         alpha=0.25,
     )
 
     ax.legend(
         frameon=False,
-        loc="upper right",
+        loc="right",
         fontsize=8,
     )
+
+
+    for period in periods:        
+        if period["label"] == "Pre Sprint 1":
+
+            period_df = service_data[
+                (service_data["job_week"] >= period["start"])
+
+                &
+                (service_data["job_week"] <= period["end"])
+            ]
+        else:
+
+            period_df = service_data[
+                (service_data["job_week"] > period["start"])
+
+                &
+                (service_data["job_week"] <= period["end"])
+            ]
+        if len(period_df) == 0:
+            continue
+
+
+        jobs_with_errors = period_df[
+            "jobs_with_errors"
+        ].sum()
+
+
+        failed_jobs = period_df[
+            "failed_jobs"
+        ].sum()
+
+        jobs_with_errors = period_df[
+            "jobs_with_errors"
+        ].sum()
+
+        failed_jobs = period_df[
+            "failed_jobs"
+        ].sum()
+
+        total_jobs = period_df[
+            "job_count"
+        ].sum()
+
+        failed_pct = (
+            failed_jobs
+            / total_jobs
+            * 100
+        ) if total_jobs > 0 else 0
+
+        error_pct = (
+            jobs_with_errors
+            / total_jobs
+            * 100
+        ) if total_jobs > 0 else 0
+
+
+
+        midpoint = (
+            period["start"]
+            + (period["end"] - period["start"]) / 2
+        )
+
+        if period['label'] == "After Sprint 2":
+                midpoint = midpoint + pd.Timedelta(days=2)
+        else:
+                midpoint = midpoint - pd.Timedelta(days=5)
+
+        ax.text(
+            midpoint,
+            0.9,
+            (
+                f"{period['label']}\n"
+                f"Error Jobs = {jobs_with_errors:,} ({error_pct:.1f}%)\n"
+                f"Failed Jobs = {failed_jobs:,} ({failed_pct:.1f}%)"
+            ),
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="top",
+            fontsize=9,
+        )
 
 
 
